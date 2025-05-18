@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>40 years of IDLC!</title>
+
+  <!-- Google Font: Poiret One -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poiret+One&display=swap" rel="stylesheet">
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-82C5ZZDF6X"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-82C5ZZDF6X');
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Poiret One", sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+      background-size: 400% 400%;
+      animation: gradient 15s ease infinite;
+      height: 100vh;
+    }
+
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    header {
+      padding: 1rem;
+      text-align: center;
+      color: white;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    #editor-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: row;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    #zoom-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      order: 2; /* Put zoom buttons after canvas */
+    }
+
+    #editor {
+      position: relative;
+      max-width: 500px;
+      background: #fff;
+      border-radius: 25px;
+      overflow: hidden;
+      order: 1;
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: grab;
+      border-radius: 15px;
+    }
+
+    .download-button {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1.25rem;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-family: "Poiret One", sans-serif;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    input[type="file"] {
+        display: none; /* Hide the default file input */
+      }
+      
+      .upload-btn {
+        padding: 0.5rem 1rem;
+        font-size: 1.25rem;
+        border: none;
+        border-radius: 8px;
+        background: #007bff;
+        color: white;
+        cursor: pointer;
+        font-family: "Poiret One", sans-serif;
+        text-align: center;
+      }
+      
+      .upload-btn:hover {
+        background: #0056b3;
+      }
+
+    @media (max-width: 600px) {
+      #editor-container {
+        flex-direction: column;
+      }
+
+      #zoom-buttons {
+        flex-direction: row;
+        justify-content: center;
+        order: 2;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Thank you for being a part of this journey!</h1>
+    <h3>Upload your photo & adjust frame before downloading</h3>
+  </header>
+
+  <div class="controls">
+    <input type="file" accept="image/*" id="upload" />
+    <label for="upload" class="upload-btn">Upload</label>
+  </div>
+
+  <div id="editor-container">
+    <div id="zoom-buttons">
+      <button id="zoomIn">+</button>
+      <button id="zoomOut">−</button>
+    </div>
+    <div id="editor">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="download-button">
+    <button id="download">Download</button>
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const zoomInBtn = document.getElementById('zoomIn');
+    const zoomOutBtn = document.getElementById('zoomOut');
+    const download = document.getElementById('download');
+
+    let uploadedImg = null;
+    let frameImage = new Image();
+    let imgX = 0, imgY = 0;
+    let scale = 1;
+    let isDragging = false;
+    let offsetX = 0, offsetY = 0;
+
+    frameImage.src = 'IDLCframe.png'; // replace with your frame image path
+    frameImage.onload = () => {
+      canvas.width = frameImage.width;
+      canvas.height = frameImage.height;
+      drawComposite();
+    };
+
+    function drawComposite() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (uploadedImg) {
+        const imgWidth = uploadedImg.width * scale;
+        const imgHeight = uploadedImg.height * scale;
+        ctx.drawImage(uploadedImg, imgX, imgY, imgWidth, imgHeight);
+      }
+      ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+    }
+
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      gtag('event', 'upload', {
+        'event_category': 'File Interaction',
+        'event_label': file.name,
+        'value': 1
+      });
+
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const img = new Image();
+        img.onload = function () {
+          uploadedImg = img;
+
+          scale = 1;
+          const imgWidth = img.width * scale;
+          const imgHeight = img.height * scale;
+          imgX = (canvas.width - imgWidth) / 2;
+          imgY = (canvas.height - imgHeight) / 2;
+
+          drawComposite();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (!uploadedImg) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const imgWidth = uploadedImg.width * scale;
+      const imgHeight = uploadedImg.height * scale;
+
+      if (
+        x >= imgX && x <= imgX + imgWidth &&
+        y >= imgY && y <= imgY + imgHeight
+      ) {
+        isDragging = true;
+        offsetX = x - imgX;
+        offsetY = y - imgY;
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const imgWidth = uploadedImg.width * scale;
+      const imgHeight = uploadedImg.height * scale;
+
+      imgX = x - offsetX;
+      imgY = y - offsetY;
+
+      if (imgWidth <= canvas.width) {
+        imgX = Math.max(Math.min(imgX, canvas.width - imgWidth), 0);
+      } else {
+        imgX = Math.min(Math.max(imgX, canvas.width - imgWidth), 0);
+      }
+
+      if (imgHeight <= canvas.height) {
+        imgY = Math.max(Math.min(imgY, canvas.height - imgHeight), 0);
+      } else {
+        imgY = Math.min(Math.max(imgY, canvas.height - imgHeight), 0);
+      }
+
+      drawComposite();
+    });
+
+    canvas.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('mouseleave', () => isDragging = false);
+
+    let lastTouch = { x: 0, y: 0, scale: 1 };
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (!uploadedImg) return;
+      e.preventDefault();
+
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        lastTouch.x = touch.clientX;
+        lastTouch.y = touch.clientY;
+      } else if (e.touches.length === 2) {
+        const [t1, t2] = e.touches;
+        lastTouch.scale = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!uploadedImg) return;
+      e.preventDefault();
+
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const dx = touch.clientX - lastTouch.x;
+        const dy = touch.clientY - lastTouch.y;
+
+        const imgWidth = uploadedImg.width * scale;
+        const imgHeight = uploadedImg.height * scale;
+
+        imgX += dx;
+        imgY += dy;
+
+        if (imgWidth <= canvas.width) {
+          imgX = Math.max(Math.min(imgX, canvas.width - imgWidth), 0);
+        } else {
+          imgX = Math.min(Math.max(imgX, canvas.width - imgWidth), 0);
+        }
+
+        if (imgHeight <= canvas.height) {
+          imgY = Math.max(Math.min(imgY, canvas.height - imgHeight), 0);
+        } else {
+          imgY = Math.min(Math.max(imgY, canvas.height - imgHeight), 0);
+        }
+
+        lastTouch.x = touch.clientX;
+        lastTouch.y = touch.clientY;
+
+        drawComposite();
+      } else if (e.touches.length === 2) {
+        const [t1, t2] = e.touches;
+        const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const scaleFactor = distance / lastTouch.scale;
+
+        scale *= scaleFactor;
+        scale = Math.max(0.5, Math.min(scale, 2));
+
+        adjustAfterZoom();
+        lastTouch.scale = distance;
+      }
+    });
+
+    canvas.addEventListener('touchend', () => {
+      lastTouch.scale = 1;
+    });
+
+    zoomInBtn.addEventListener('click', () => {
+      if (!uploadedImg) return;
+      scale *= 1.1;
+      scale = Math.min(scale, 2);
+      adjustAfterZoom();
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      if (!uploadedImg) return;
+      scale *= 0.9;
+      scale = Math.max(scale, 0.5);
+      adjustAfterZoom();
+    });
+
+    function adjustAfterZoom() {
+      const imgWidth = uploadedImg.width * scale;
+      const imgHeight = uploadedImg.height * scale;
+
+      if (imgWidth <= canvas.width) {
+        imgX = Math.max(Math.min(imgX, canvas.width - imgWidth), 0);
+      } else {
+        imgX = Math.min(Math.max(imgX, canvas.width - imgWidth), 0);
+      }
+
+      if (imgHeight <= canvas.height) {
+        imgY = Math.max(Math.min(imgY, canvas.height - imgHeight), 0);
+      } else {
+        imgY = Math.min(Math.max(imgY, canvas.height - imgHeight), 0);
+      }
+
+      drawComposite();
+    }
+
+    download.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'framed_image.png';
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+
+ // Track download event in Google Analytics
+ gtag('event', 'download', {
+    'event_category': 'File Interaction',
+    'event_label': 'framed_image.png',
+    'value': 1
+  });
+
+    });
+  </script>
+</body>
+</html>
